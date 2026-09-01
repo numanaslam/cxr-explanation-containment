@@ -84,3 +84,11 @@ the paper are produced by the primary pipeline above.
 
 A `CITATION.cff` and an archived DOI (Zenodo) will be added once the paper is accepted.
 Until then, please cite the repository URL.
+
+## Python revision pipeline (v2)
+
+`python/` contains a complete PyTorch reimplementation addressing the JMI review:
+leakage-free splits, multi-seed retraining, lung-restricted LIME segmentation,
+dual-fill occlusion gate, and rotation/translation/mask-swap nulls. See
+`python/README.md` for the GPU runbook. The MATLAB scripts remain the record of
+the originally published numbers.

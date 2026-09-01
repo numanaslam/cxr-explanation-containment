@@ -1,0 +1,8 @@
+# Python revision pipeline -- cxr-explanation-containment
+# python >= 3.9
+numpy>=1.24
+scipy>=1.10
+scikit-image>=0.20      # slic(mask=...) needs >=0.17; 0.20+ recommended
+pillow>=9.0
+torch>=2.0              # install the CUDA build matching your driver:
+torchvision>=0.15       #   https://pytorch.org/get-started/locally/
