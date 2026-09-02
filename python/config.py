@@ -43,28 +43,34 @@ CKPT = WORK / "checkpoints"
 RESULTS = WORK / "results"
 MASKSTORE = WORK / "masks"                                       # saved explanation masks
 
-for d in (WORK, CKPT, RESULTS, MASKSTORE):
-    d.mkdir(parents=True, exist_ok=True)
+# On a machine where ROOT is not an absolute path (e.g. the Windows default
+# viewed from macOS/Linux), skip all directory creation -- set P2_ROOT there.
+_ROOT_USABLE = ROOT.is_absolute()
+
+if _ROOT_USABLE:
+    for d in (WORK, CKPT, RESULTS, MASKSTORE):
+        d.mkdir(parents=True, exist_ok=True)
 
 # Pretrained ImageNet weights live under ROOT so offline machines can be fed by
 # copying files instead of downloading: put the .pth files (URLs in
 # WEIGHTS_URLS.txt) into  <ROOT>/torchhub/hub/checkpoints/  and torchvision
 # finds them there. TORCH_HOME is only set if the environment hasn't set it.
-os.environ.setdefault("TORCH_HOME", str(ROOT / "torchhub"))
 _CKPT_CACHE = ROOT / "torchhub" / "hub" / "checkpoints"
-_CKPT_CACHE.mkdir(parents=True, exist_ok=True)
+if _ROOT_USABLE:
+    os.environ.setdefault("TORCH_HOME", str(ROOT / "torchhub"))
+    _CKPT_CACHE.mkdir(parents=True, exist_ok=True)
 
-# Weight files dropped next to the scripts (python/models/) or in <ROOT>/models/
-# are copied into the torch cache on first import, so an offline machine is
-# provisioned by pasting the .pth files anywhere convenient.
-for _cand in (Path(__file__).resolve().parent / "models", ROOT / "models"):
-    if _cand.is_dir():
-        for _p in _cand.glob("*.pth"):
-            _dst = _CKPT_CACHE / _p.name
-            if not _dst.is_file():
-                import shutil
-                print(f"[weights] copying {_p.name} -> {_dst.parent}")
-                shutil.copy2(_p, _dst)
+    # Weight files dropped next to the scripts (python/models/) or in
+    # <ROOT>/models/ are copied into the torch cache on first import, so an
+    # offline machine is provisioned by pasting .pth files anywhere convenient.
+    for _cand in (Path(__file__).resolve().parent / "models", ROOT / "models"):
+        if _cand.is_dir():
+            for _p in _cand.glob("*.pth"):
+                _dst = _CKPT_CACHE / _p.name
+                if not _dst.is_file():
+                    import shutil
+                    print(f"[weights] copying {_p.name} -> {_dst.parent}")
+                    shutil.copy2(_p, _dst)
 
 # ----------------------------------------------------------------------------- protocol
 IMG_SIZE = 512            # working resolution for ROI construction (as in the paper)
