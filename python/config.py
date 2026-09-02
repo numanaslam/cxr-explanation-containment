@@ -26,9 +26,18 @@ from pathlib import Path
 
 # ----------------------------------------------------------------------------- paths
 ROOT = Path(os.environ.get("P2_ROOT", r"C:\paper2_repo")).expanduser()
-RAW_SHENZHEN_IMG = ROOT / "input" / "CXR_png"                    # CHNCXR_####_[01].png
-RAW_SHENZHEN_MASK = ROOT / "input" / "mask"                      # <base>_mask.png (Kaggle)
-RAW_MONTGOMERY = ROOT / "input" / "MontgomerySet"                # NLM layout
+
+
+def _env_path(var: str, default: Path) -> Path:
+    v = os.environ.get(var)
+    return Path(v).expanduser() if v else default
+
+
+# Preferred layout; when a folder is missing, data.py auto-detects the real one
+# under ROOT (bounded search) and prints what it picked. Env vars override both.
+RAW_SHENZHEN_IMG = _env_path("P2_SHENZHEN_IMG", ROOT / "input" / "CXR_png")
+RAW_SHENZHEN_MASK = _env_path("P2_SHENZHEN_MASK", ROOT / "input" / "mask")
+RAW_MONTGOMERY = _env_path("P2_MONTGOMERY", ROOT / "input" / "MontgomerySet")
 WORK = ROOT / "pywork"                                           # everything we create
 CKPT = WORK / "checkpoints"
 RESULTS = WORK / "results"

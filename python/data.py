@@ -38,13 +38,90 @@ def _load_mask(p: Path, size: int) -> np.ndarray:
     return (np.asarray(im) > 0)
 
 
+# ------------------------------------------------------------ folder auto-detection
+_SKIP_DIRS = {"pywork", "venv", ".git", "__pycache__", "checkpoints", "masks", "results"}
+
+
+def _dirs_under(top: Path, depth: int = 3):
+    if not top.is_dir():
+        return
+    yield top
+    if depth == 0:
+        return
+    for c in sorted(p for p in top.iterdir()
+                    if p.is_dir() and p.name not in _SKIP_DIRS):
+        yield from _dirs_under(c, depth - 1)
+
+
+def _count_raw(d: Path, prefix: str) -> int:
+    """PNGs named like the dataset, excluding *_mask.png files."""
+    return sum(1 for p in d.glob(f"{prefix}_*.png") if not p.stem.endswith("_mask"))
+
+
+def _find_image_dir(configured: Path, prefix: str, what: str) -> Path:
+    """Use the configured folder if present; otherwise search ROOT for the dir
+    holding the most <prefix>_*.png files, preferring raw-image folder names."""
+    if configured.is_dir() and _count_raw(configured, prefix) > 0:
+        return configured
+    scored = []
+    for d in _dirs_under(C.ROOT):
+        n = _count_raw(d, prefix)
+        if n == 0:
+            continue
+        name = d.name.lower()
+        bonus = 0
+        if "cxr_png" in name:
+            bonus += 3
+        elif "resized" in name or name in ("cxr", "images", "img", "png"):
+            bonus += 2
+        # masked/ROI derivatives of the raws also carry these basenames --
+        # they must lose to a raw folder whenever one exists
+        if any(w in name for w in ("annot", "roi", "mask", "seg")):
+            bonus -= 5
+        scored.append((bonus, n, d))
+    if not scored:
+        raise SystemExit(
+            f"No {what} images ({prefix}_*.png) found anywhere under {C.ROOT}.\n"
+            f"Download links are in the config.py header; or point the "
+            f"P2_{what.upper()}_IMG / P2_MONTGOMERY env var at the folder.")
+    scored.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    bonus, n, d = scored[0]
+    print(f"[autodetect] {what} images: {d}  ({n} files)"
+          + ("  ** folder name suggests masked/derived images -- verify, or "
+             "override with an env var (see config.py) **" if bonus < 0 else ""))
+    return d
+
+
+def _find_mask_dir(configured: Path, prefix: str) -> Path:
+    if configured.is_dir() and any(configured.glob(f"{prefix}_*.png")):
+        return configured
+    for d in _dirs_under(C.ROOT):
+        if any(p.stem.endswith("_mask") for p in d.glob(f"{prefix}_*.png")):
+            print(f"[autodetect] {prefix} masks: {d}")
+            return d
+    raise SystemExit(f"No {prefix} lung-mask folder found under {C.ROOT} "
+                     "(expected <base>_mask.png files; link in config.py header).")
+
+
+def _find_named_dir(name: str, prefix: str):
+    """Locate e.g. leftMask/rightMask dirs of the NLM Montgomery layout."""
+    for d in _dirs_under(C.ROOT, depth=4):
+        if d.name.lower() == name.lower() and any(d.glob(f"{prefix}_*.png")):
+            return d
+    return None
+
+
 def shenzhen_pairs():
     """Yield (basename, img_path, mask_path, label) for Shenzhen; label 1 = TB."""
-    for img in sorted(C.RAW_SHENZHEN_IMG.glob("*.png")):
+    img_dir = _find_image_dir(C.RAW_SHENZHEN_IMG, "CHNCXR", "shenzhen")
+    mask_dir = _find_mask_dir(C.RAW_SHENZHEN_MASK, "CHNCXR")
+    for img in sorted(img_dir.glob("CHNCXR_*.png")):
         base = img.stem
-        m = C.RAW_SHENZHEN_MASK / f"{base}_mask.png"
+        if base.endswith("_mask"):
+            continue
+        m = mask_dir / f"{base}_mask.png"
         if not m.is_file():
-            m = C.RAW_SHENZHEN_MASK / f"{base}.png"
+            m = mask_dir / f"{base}.png"
         if not m.is_file():
             continue
         yield base, img, m, int(base.endswith("_1"))
@@ -52,10 +129,15 @@ def shenzhen_pairs():
 
 def montgomery_pairs():
     """Montgomery: combine left|right manual masks. label 1 = TB."""
-    cxr = C.RAW_MONTGOMERY / "CXR_png"
-    lm = C.RAW_MONTGOMERY / "ManualMask" / "leftMask"
-    rm = C.RAW_MONTGOMERY / "ManualMask" / "rightMask"
-    for img in sorted(cxr.glob("*.png")):
+    img_dir = _find_image_dir(C.RAW_MONTGOMERY / "CXR_png", "MCUCXR", "montgomery")
+    lm = _find_named_dir("leftMask", "MCUCXR")
+    rm = _find_named_dir("rightMask", "MCUCXR")
+    if lm is None or rm is None:
+        raise SystemExit(
+            "Montgomery ManualMask/leftMask + rightMask folders not found under "
+            f"{C.ROOT}. Montgomery is the optional cross-dataset arm -- download "
+            "it from the NLM link in config.py, or skip this step.")
+    for img in sorted(img_dir.glob("MCUCXR_*.png")):
         base = img.stem
         lp, rp = lm / f"{base}.png", rm / f"{base}.png"
         if lp.is_file() and rp.is_file():
