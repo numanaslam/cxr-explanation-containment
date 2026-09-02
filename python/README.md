@@ -17,13 +17,26 @@ Dataset download links: header of `config.py`.
 
 ## Setup (GPU box, once)
 
-```bash
-# any python >= 3.9; use a fresh venv
+Windows PowerShell (note: PS 5.1 has no `&&` — run lines one at a time):
+
+```powershell
+cd C:\paper2_py
 python -m venv venv
-venv\Scripts\activate            # Windows   (Linux/mac: source venv/bin/activate)
+.\venv\Scripts\Activate.ps1
+# if activation is blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+python -m pip install --upgrade pip
+# CUDA torch FIRST (so pip does not grab the CPU wheel), then the rest:
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
-# install the CUDA torch build for your driver from https://pytorch.org/get-started/locally/
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+```
+
+Linux/macOS:
+
+```bash
+python -m venv venv && source venv/bin/activate
+pip install torch torchvision   # pick the CUDA index for your driver from pytorch.org
+pip install -r requirements.txt
 ```
 
 Paths: everything is rooted at `P2_ROOT` (default `C:\paper2_repo`). Either lay the
