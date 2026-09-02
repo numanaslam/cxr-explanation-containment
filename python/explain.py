@@ -30,7 +30,14 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-from skimage.segmentation import slic
+
+try:                                    # preferred: the reference implementation
+    from skimage.segmentation import slic
+    import skimage
+    SEGMENTER = f"skimage.slic {skimage.__version__}"
+except ImportError:                     # restricted networks: bundled fallback
+    from slic_lite import slic
+    SEGMENTER = "slic_lite (bundled)"
 
 import config as C
 from data import load_manifest
@@ -181,9 +188,9 @@ def run(arch, seed, dataset, cond, smoke=False):
         rows = rows[:6]
     n_samples = 100 if smoke else C.LIME_SAMPLES
     runs = 1 if smoke else C.LIME_RUNS
-    store = {}
+    store = {"META_segmenter": np.array(SEGMENTER)}
     print(f"{arch} s{seed} {dataset}/{cond}: {len(rows)} heldout images, "
-          f"LIME {n_samples}x{runs}")
+          f"LIME {n_samples}x{runs} | segmenter: {SEGMENTER}")
 
     for r_i, row in enumerate(rows):
         base = row["basename"]
