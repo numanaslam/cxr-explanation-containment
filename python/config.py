@@ -46,6 +46,13 @@ MASKSTORE = WORK / "masks"                                       # saved explana
 for d in (WORK, CKPT, RESULTS, MASKSTORE):
     d.mkdir(parents=True, exist_ok=True)
 
+# Pretrained ImageNet weights live under ROOT so offline machines can be fed by
+# copying files instead of downloading: put the .pth files (URLs in
+# WEIGHTS_URLS.txt) into  <ROOT>/torchhub/hub/checkpoints/  and torchvision
+# finds them there. TORCH_HOME is only set if the environment hasn't set it.
+os.environ.setdefault("TORCH_HOME", str(ROOT / "torchhub"))
+(ROOT / "torchhub" / "hub" / "checkpoints").mkdir(parents=True, exist_ok=True)
+
 # ----------------------------------------------------------------------------- protocol
 IMG_SIZE = 512            # working resolution for ROI construction (as in the paper)
 NET_SIZE = 224            # network input (torchvision models; AlexNet also accepts 224)

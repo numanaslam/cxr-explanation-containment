@@ -1,0 +1,15 @@
+# ImageNet weights torchvision 0.21 resolves for weights="DEFAULT".
+# On offline machines: download these elsewhere and copy them, exact filename
+# kept, into  <P2_ROOT>\torchhub\hub\checkpoints\   (default P2_ROOT=C:\paper2_repo).
+# The 8-hex suffix in each filename is the sha256 prefix; torchvision verifies it.
+
+# core four (the paper's architectures)
+https://download.pytorch.org/models/alexnet-owt-7be5be79.pth
+https://download.pytorch.org/models/vgg16-397923af.pth
+https://download.pytorch.org/models/vgg19-dcbb9e9d.pth
+https://download.pytorch.org/models/resnet50-11ad3fa6.pth
+
+# optional third family+ (review Concern 5)
+https://download.pytorch.org/models/densenet121-a639ec97.pth
+https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth
+https://download.pytorch.org/models/vit_b_16-c867db91.pth

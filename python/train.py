@@ -64,7 +64,17 @@ class RoiDataset(Dataset):
 def build_model(arch: str) -> nn.Module:
     """Pretrained backbone + fresh 2-class head; returns (model, head_params)."""
     fn = getattr(models, arch)
-    m = fn(weights="DEFAULT")
+    try:
+        m = fn(weights="DEFAULT")
+    except Exception as e:                       # offline box: no weight download
+        import urllib.error
+        if isinstance(e, (urllib.error.URLError, OSError)):
+            raise SystemExit(
+                f"Cannot download {arch} ImageNet weights (no internet access).\n"
+                f"Copy the .pth file for {arch} (URLs in WEIGHTS_URLS.txt) into:\n"
+                f"    {C.ROOT / 'torchhub' / 'hub' / 'checkpoints'}\n"
+                f"keeping the exact filename, then re-run.") from e
+        raise
     if arch == "alexnet" or arch.startswith("vgg"):
         m.classifier[6] = nn.Linear(m.classifier[6].in_features, 2)
         head = list(m.classifier[6].parameters())
