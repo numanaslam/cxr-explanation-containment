@@ -177,7 +177,13 @@ def gradcam(model, arch, x, cls):
 
 
 # ------------------------------------------------------------------ driver
-def run(arch, seed, dataset, cond, smoke=False):
+def run(arch, seed, dataset, cond, smoke=False, force=False):
+    import time
+    out = C.MASKSTORE / f"{arch}_s{seed}_{dataset}_{cond}.npz"
+    if out.is_file() and not force and not smoke:
+        print(f"[skip] {out.name} exists (use --force to redo)")
+        return
+    t0 = time.time()
     ck = torch.load(C.CKPT / f"{arch}_s{seed}.pt", map_location=DEV)
     model = build_model(arch).to(DEV)
     model.load_state_dict(ck["state"])
@@ -221,11 +227,13 @@ def run(arch, seed, dataset, cond, smoke=False):
         store[f"GC_{base}"] = gradcam(model, arch, x, cls).astype(np.float16)
         store[f"CLS_{base}"] = np.array([cls, int(row["label"])], np.int8)
         if (r_i + 1) % 10 == 0:
-            print(f"  {r_i+1}/{len(rows)}")
+            el = time.time() - t0
+            eta = el / (r_i + 1) * (len(rows) - r_i - 1)
+            print(f"  {r_i+1}/{len(rows)}  ({el/60:.1f} min elapsed, "
+                  f"~{eta/60:.0f} min left)")
 
-    out = C.MASKSTORE / f"{arch}_s{seed}_{dataset}_{cond}.npz"
     np.savez_compressed(out, **store)
-    print(f"[saved] {out}  ({len(store)} arrays)")
+    print(f"[saved] {out}  ({len(store)} arrays, {(time.time()-t0)/60:.1f} min)")
 
 
 if __name__ == "__main__":
@@ -235,7 +243,9 @@ if __name__ == "__main__":
     ap.add_argument("--dataset", default="shenzhen")
     ap.add_argument("--cond", default="roi", choices=["roi", "full"])
     ap.add_argument("--smoke", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="recompute even if the mask store already exists")
     a = ap.parse_args()
     for arch in a.archs:
         for seed in a.seeds:
-            run(arch, seed, a.dataset, a.cond, a.smoke)
+            run(arch, seed, a.dataset, a.cond, a.smoke, a.force)

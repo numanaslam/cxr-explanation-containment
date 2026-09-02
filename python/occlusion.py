@@ -122,13 +122,12 @@ if __name__ == "__main__":
     a = ap.parse_args()
     cfgs = [k for k, _, _, _ in C.LIME_CONFIGS]
     out = C.RESULTS / "occlusion_gate.csv"
-    new = not out.exists()
-    with open(out, "a", newline="") as fh:
+    # fresh file each invocation, so a prior --smoke run cannot contaminate it
+    with open(out, "w", newline="") as fh:
         w = csv.writer(fh)
-        if new:
-            w.writerow(["arch", "seed", "dataset", "cond", "config", "scope", "fill",
-                        "n", "drop_topk", "drop_random", "drop_bottomk", "gap",
-                        "concentration_excess"])
+        w.writerow(["arch", "seed", "dataset", "cond", "config", "scope", "fill",
+                    "n", "drop_topk", "drop_random", "drop_bottomk", "gap",
+                    "concentration_excess"])
         for arch in a.archs:
             for seed in a.seeds:
                 for row in run(arch, seed, a.dataset, a.cond, cfgs, a.smoke):
