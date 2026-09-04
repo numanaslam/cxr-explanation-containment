@@ -157,6 +157,8 @@ def main():
     ap.add_argument("--seeds", nargs="+", type=int, default=C.TRAIN_SEEDS)
     ap.add_argument("--dataset", default="shenzhen")
     ap.add_argument("--smoke", action="store_true", help="2 epochs, quick sanity")
+    ap.add_argument("--force", action="store_true",
+                    help="retrain even if a checkpoint already exists (overwrites)")
     a = ap.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"device={device}  archs={a.archs}  seeds={a.seeds}")
@@ -170,6 +172,10 @@ def main():
             w.writerow(["arch", "seed", "epochs", "heldout_acc", "heldout_auc"])
         for arch in a.archs:
             for seed in a.seeds:
+                ck = C.CKPT / f"{arch}_s{seed}.pt"
+                if ck.is_file() and not a.force and not a.smoke:
+                    print(f"[skip] {ck.name} exists (use --force to retrain)")
+                    continue
                 acc, auc = train_one(arch, seed, a.dataset, epochs, device)
                 w.writerow([arch, seed, epochs, f"{acc:.4f}", f"{auc:.4f}"])
                 f.flush()
