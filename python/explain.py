@@ -180,18 +180,31 @@ def gradcam(model, arch, x, cls):
 def run(arch, seed, dataset, cond, smoke=False, force=False):
     import time
     out = C.MASKSTORE / f"{arch}_s{seed}_{dataset}_{cond}.npz"
+    rows_all = [r for r in load_manifest(dataset) if r["role"] == "heldout"]
+
+    # Resume guard that also rejects INCOMPLETE stores (e.g. a 6-image --smoke
+    # file left in place): skip only if the store already holds every heldout
+    # image, otherwise regenerate it.
     if out.is_file() and not force and not smoke:
-        print(f"[skip] {out.name} exists (use --force to redo)")
-        return
+        try:
+            z0 = np.load(out)
+            n_have = sum(1 for k in z0.files if k.startswith("CLS_"))
+            z0.close()
+        except Exception:
+            n_have = -1
+        if n_have == len(rows_all):
+            print(f"[skip] {out.name} complete ({n_have} images)")
+            return
+        print(f"[redo] {out.name} has {n_have} images, expected "
+              f"{len(rows_all)} -- regenerating")
+
     t0 = time.time()
     ck = torch.load(C.CKPT / f"{arch}_s{seed}.pt", map_location=DEV)
     model = build_model(arch).to(DEV)
     model.load_state_dict(ck["state"])
     model.eval()
 
-    rows = [r for r in load_manifest(dataset) if r["role"] == "heldout"]
-    if smoke:
-        rows = rows[:6]
+    rows = rows_all[:6] if smoke else rows_all
     n_samples = 100 if smoke else C.LIME_SAMPLES
     runs = 1 if smoke else C.LIME_RUNS
     store = {"META_segmenter": np.array(SEGMENTER)}
